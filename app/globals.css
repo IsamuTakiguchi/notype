@@ -1,0 +1,109 @@
+@import "tailwindcss";
+
+/*
+ * next/font/google は使わない。ビルド時にフォントを取りに行くので、
+ * プロキシ配下やオフラインで `next build` ごと落ちる。
+ * システムスタックで日本語は十分きれいに出る。
+ */
+
+/*
+ * 配色は :root の実行時変数に持たせ、@theme inline から参照する。
+ * @theme 自体はメディアクエリの中に置けないので、ダークモードは
+ * 変数の差し替えで表現する。
+ */
+@theme inline {
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", "Hiragino Sans",
+    "Hiragino Kaku Gothic ProN", "Noto Sans JP", Meiryo, sans-serif;
+
+  --color-ink: var(--nt-ink);
+  --color-ink-soft: var(--nt-ink-soft);
+  --color-ink-faint: var(--nt-ink-faint);
+  --color-surface: var(--nt-surface);
+  --color-panel: var(--nt-panel);
+  --color-line: var(--nt-line);
+  --color-accent: var(--nt-accent);
+  --color-accent-soft: var(--nt-accent-soft);
+  --color-live: var(--nt-live);
+  --color-live-soft: var(--nt-live-soft);
+}
+
+:root {
+  color-scheme: light;
+  --nt-ink: #16161a;
+  --nt-ink-soft: #55555f;
+  --nt-ink-faint: #8b8b96;
+  --nt-surface: #fbfaf9;
+  --nt-panel: #ffffff;
+  --nt-line: #e6e3df;
+  --nt-accent: #4c3ce0;
+  --nt-accent-soft: #efedfd;
+  --nt-live: #c8324a;
+  --nt-live-soft: #fdeef0;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --nt-ink: #f2f1ef;
+    --nt-ink-soft: #a8a7b0;
+    --nt-ink-faint: #74737e;
+    --nt-surface: #131316;
+    --nt-panel: #1c1c21;
+    --nt-line: #2e2e35;
+    --nt-accent: #9b8dff;
+    --nt-accent-soft: #26224a;
+    --nt-live: #ff8095;
+    --nt-live-soft: #3a1f26;
+  }
+}
+
+body {
+  background: var(--nt-surface);
+  color: var(--nt-ink);
+}
+
+/* 録音中のマイクボタンの脈動。動きを減らす設定は尊重する。 */
+@keyframes notype-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--nt-live) 45%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 12px color-mix(in srgb, var(--nt-live) 0%, transparent);
+  }
+}
+
+.notype-pulse {
+  animation: notype-pulse 1.8s ease-out infinite;
+}
+
+/* ストリーミング中のカーソル。 */
+@keyframes notype-caret {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.notype-caret::after {
+  content: "";
+  display: inline-block;
+  width: 0.5ch;
+  height: 1.05em;
+  margin-left: 0.1em;
+  vertical-align: text-bottom;
+  background: var(--nt-accent);
+  animation: notype-caret 1s step-end infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notype-pulse,
+  .notype-caret::after {
+    animation: none;
+  }
+}
