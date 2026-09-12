@@ -1,5 +1,7 @@
 # notype
 
+[![CI](https://github.com/IsamuTakiguchi/notype/actions/workflows/ci.yml/badge.svg)](https://github.com/IsamuTakiguchi/notype/actions/workflows/ci.yml)
+
 話すだけで、そのまま送信できる文章に。[Typeless](https://www.typeless.com/ja) と同種の AI 音声入力を Web アプリとして実装したものです。
 
 音声認識そのものではなく、**認識結果の後処理**が中心です。人が自然に話すと、フィラー（えーと、あの）、言い直し、繰り返し、口語的な崩れが必ず混ざります。notype はそれを取り除いて、指定したトーンの文章に整えます。
@@ -72,6 +74,8 @@ npm run lint
 npm test                                                  # vitest
 PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers npm run e2e     # Playwright
 ```
+
+同じ内容を GitHub Actions（`.github/workflows/ci.yml`）でも回しています。`check` ジョブが型・lint・単体テスト・ビルド、`e2e` ジョブが Playwright を担当し、失敗時はレポートとスクリーンショットが artifact として残ります。
 
 `@playwright/test` は `~1.56.0`、`typescript` は `~5.9.3` にピン留めしてあります。理由は `package.json` の隣のコメントではなくここに書いておきます。Playwright はバージョンと Chromium リビジョンが1対1で、ずれると存在しないリビジョンを探しに行きます。TypeScript 7 は `eslint-config-next` が依存する `typescript-eslint@8`（peer: `<6.1.0`）の範囲外で、上げると lint が壊れます。
 
