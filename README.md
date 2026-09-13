@@ -66,6 +66,45 @@ hooks/useDictation.ts     Web Speech API ラッパー
 components/Workbench.tsx  クライアント状態の所有者
 ```
 
+## デプロイ（Railway）
+
+Node コンテナで `next start` が動くだけなので、アプリ側に特別な対応は要りません。`railway.json` にビルド／起動／ヘルスチェックを固定してあります。
+
+1. [railway.app](https://railway.app) で **New Project → Deploy from GitHub repo** から `IsamuTakiguchi/notype` を選ぶ
+2. **Variables** に `ANTHROPIC_API_KEY` を追加する
+3. **Settings → Networking → Generate Domain** で公開URLを発行する
+
+ポートは Railway が渡す `PORT` を `next start` がそのまま使います（実測確認済み）。
+
+### 公開する前に読むこと
+
+**公開URLに置いた瞬間、`/api/polish` は「誰でもあなたのAPIキーで Claude を呼べる口」になります。** URL を知られれば第三者があなたの課金でモデルを叩けます。
+
+そのため既定で **1つのIPあたり5分間に20回** のレート制限を入れてあります（`lib/ratelimit.ts`）。上限を超えると `429` と `Retry-After` を返し、リクエストボディを読む前に弾くのでモデルには到達しません。
+
+カウンタはプロセス内にしか持ちません。レプリカを増やすと制限はレプリカ数だけ緩くなるので、そのときは共有ストアに移してください。URL を他人に知られたくない場合は、レート制限だけに頼らず Railway 側でアクセス制限をかけるか、非公開のまま使ってください。
+
+### 環境変数
+
+| 変数 | 既定 | 用途 |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | なし | 未設定でも動きますが、**全出力がルールベースに劣化します** |
+| `RATE_LIMIT_MAX` | `20` | ウィンドウあたりの上限。`0` で無効化 |
+| `RATE_LIMIT_WINDOW_MS` | `300000` | ウィンドウ幅（ミリ秒） |
+
+### デプロイ後の確認
+
+APIキーの設定漏れは**エラーにならず、静かにルールベースに落ちる**のが厄介なところです。動いているように見えるので気づきません。公開したら必ず、適当な文を整形して**「整形後」ペインのバッジを見てください**。
+
+- `Claude Opus 5` … 正常
+- `ルールベース` … 鍵が読めていません。Variables を確認してください（理由は結果ペインの注記に出ます）
+
+## Cloudflare Workers に移す場合
+
+`@opennextjs/cloudflare` で載せられます（Next.js 16 は 16.2.11 以降が必要、本プロジェクトは 16.3.5）。無料枠があり、CPU時間課金なので待ち時間の長い LLM 中継とは相性が良いです。
+
+ただし OpenNext では秘密情報は `process.env` ではなく `getCloudflareContext().env` 経由が正式なので、`lib/claude.ts` の `hasApiKey()` / `getClient()` を両対応にする必要があります。ここを直さないと**鍵が読めず全出力がルールベースに劣化**します。`wrangler.jsonc`（`nodejs_compat` フラグ必須）と `open-next.config.ts` の追加も要ります。
+
 ## 開発
 
 ```bash

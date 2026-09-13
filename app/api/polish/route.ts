@@ -17,6 +17,7 @@ import {
   MAX_TARGET_LENGTH,
   MAX_TRANSCRIPT_LENGTH,
 } from "@/lib/prompt";
+import { clientKey, polishRateLimiter } from "@/lib/ratelimit";
 import { polishWithRules } from "@/lib/rules";
 import { isMode, isTone, type DictEntry, type FallbackReason, type PolishRequest } from "@/lib/types";
 
@@ -138,6 +139,15 @@ async function* claudeChunks(
 }
 
 export async function POST(req: Request): Promise<Response> {
+  // 公開URLに置いた瞬間、このエンドポイントは「誰でも運営者のAPIキーで
+  // Claude を呼べる口」になる。検証より前に弾いてモデルまで到達させない。
+  const limit = polishRateLimiter(clientKey(req.headers));
+  if (!limit.allowed) {
+    return errorResponse(429, "リクエストが多すぎます。少し待ってから再試行してください。", {
+      "retry-after": String(limit.retryAfterSeconds),
+    });
+  }
+
   let parsed: unknown;
   try {
     parsed = await req.json();
