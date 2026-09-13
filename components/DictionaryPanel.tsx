@@ -61,7 +61,7 @@ export function DictionaryPanel({ entries, hydrated, onChange }: Props) {
             data-testid="dict-to"
             value={to}
             onChange={(event) => setTo(event.target.value)}
-            placeholder="notype"
+            placeholder="NoType"
             className="rounded-lg border border-line bg-panel px-3 py-2 text-sm text-ink placeholder:text-ink-faint/70 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent"
           />
         </label>

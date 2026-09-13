@@ -14,6 +14,11 @@ import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { usePolishStream } from "@/hooks/usePolishStream";
 import { isMode, isTone, type DictEntry, type HistoryItem, type Settings } from "@/lib/types";
 
+/**
+ * 表示名を NoType に変えたあともキーは notype: のまま据え置く。
+ * ここを変えると、既に使っている人の個人辞書と履歴が黙って消える。
+ * ストレージキーは識別子であって表示名ではない。
+ */
 const KEYS = {
   settings: "notype:v1:settings",
   dictionary: "notype:v1:dictionary",
@@ -418,7 +423,7 @@ function Header() {
   return (
     <header className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
       <div className="flex items-baseline gap-3">
-        <h1 className="text-xl font-semibold tracking-tight text-ink">notype</h1>
+        <h1 className="text-xl font-semibold tracking-tight text-ink">NoType</h1>
         <p className="text-sm text-ink-soft">話すだけで、整った文章に。</p>
       </div>
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs text-ink-faint">

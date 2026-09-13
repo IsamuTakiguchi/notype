@@ -137,9 +137,9 @@ describe("polishWithRules — 句読点", () => {
 describe("polishWithRules — 個人辞書", () => {
   it("表記ゆれを正しい表記に寄せる", () => {
     const out = polishWithRules("えーと、のたいぷ の話なんですけど。", {
-      dictionary: [{ from: ["のたいぷ", "ノータイプ"], to: "notype" }],
+      dictionary: [{ from: ["のたいぷ", "ノータイプ"], to: "NoType" }],
     });
-    expect(out).toContain("notype");
+    expect(out).toContain("NoType");
     expect(out).not.toContain("のたいぷ");
   });
 
@@ -147,10 +147,10 @@ describe("polishWithRules — 個人辞書", () => {
     const out = polishWithRules("ノータイプとタイプの違い。", {
       dictionary: [
         { from: ["タイプ"], to: "type" },
-        { from: ["ノータイプ"], to: "notype" },
+        { from: ["ノータイプ"], to: "NoType" },
       ],
     });
-    expect(out).toBe("notypeとtypeの違い。");
+    expect(out).toBe("NoTypeとtypeの違い。");
   });
 });
 

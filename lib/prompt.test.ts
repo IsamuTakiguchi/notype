@@ -12,7 +12,7 @@ const base = {
 };
 
 const dictionary = [
-  { from: ["のたいぷ", "ノータイプ"], to: "notype" },
+  { from: ["のたいぷ", "ノータイプ"], to: "NoType" },
   { from: ["あんそろぴっく"], to: "Anthropic" },
 ];
 
@@ -56,17 +56,17 @@ describe("buildSystemBlocks — バイト安定性（キャッシュ無効化の
   // 約10倍になるという最も気づきにくい失敗なので、明示的に固定する。
   const orderings: DictEntry[][] = [
     [
-      { from: ["のたいぷ", "ノータイプ"], to: "notype" },
+      { from: ["のたいぷ", "ノータイプ"], to: "NoType" },
       { from: ["あんそろぴっく"], to: "Anthropic" },
     ],
     [
       { from: ["あんそろぴっく"], to: "Anthropic" },
-      { from: ["ノータイプ", "のたいぷ"], to: "notype" },
+      { from: ["ノータイプ", "のたいぷ"], to: "NoType" },
     ],
     [
-      { from: ["ノータイプ"], to: "notype" },
+      { from: ["ノータイプ"], to: "NoType" },
       { from: ["あんそろぴっく"], to: "Anthropic" },
-      { from: ["のたいぷ"], to: "notype" },
+      { from: ["のたいぷ"], to: "NoType" },
     ],
   ];
 
@@ -85,15 +85,15 @@ describe("buildSystemBlocks — バイト安定性（キャッシュ無効化の
 
   it("重複した to はひとつのエントリに統合される", () => {
     const merged = normalizeDictionary([
-      { from: ["のたいぷ"], to: "notype" },
-      { from: ["ノータイプ"], to: "notype" },
+      { from: ["のたいぷ"], to: "NoType" },
+      { from: ["ノータイプ"], to: "NoType" },
     ]);
     expect(merged).toHaveLength(1);
     expect(merged[0]?.from).toEqual(["のたいぷ", "ノータイプ"].sort());
   });
 
   it("to と同じ from は落とし、エントリ数に上限を掛ける", () => {
-    expect(normalizeDictionary([{ from: ["notype"], to: "notype" }])).toEqual([]);
+    expect(normalizeDictionary([{ from: ["NoType"], to: "NoType" }])).toEqual([]);
     const many = Array.from({ length: 80 }, (_, i) => ({ from: [`f${i}`], to: `t${i}` }));
     expect(normalizeDictionary(many).length).toBeLessThanOrEqual(50);
   });

@@ -46,15 +46,15 @@ test("個人辞書が整形結果に反映される", async ({ page }) => {
 
   await page.getByRole("button", { name: /個人辞書/ }).click();
   await page.getByTestId("dict-from").fill("のたいぷ");
-  await page.getByTestId("dict-to").fill("notype");
+  await page.getByTestId("dict-to").fill("NoType");
   await page.getByTestId("dict-add").click();
-  await expect(page.getByTestId("dict-list")).toContainText("notype");
+  await expect(page.getByTestId("dict-list")).toContainText("NoType");
 
   await page.getByTestId("transcript-input").fill("えーと、のたいぷ の話なんですけど。");
   await page.getByTestId("polish-button").click();
 
   const output = page.getByTestId("polished-output");
-  await expect(output).toContainText("notype");
+  await expect(output).toContainText("NoType");
   await expect(output).not.toContainText("のたいぷ");
 
   await page.screenshot({ path: "e2e/__screenshots__/dictionary.png", fullPage: true });

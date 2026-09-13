@@ -190,7 +190,7 @@ export function ShortcutGuide() {
 
       <footer className="text-xs text-ink-faint">
         <Link href="/" className="underline underline-offset-2 hover:text-ink">
-          ← notype に戻る
+          ← NoType に戻る
         </Link>
       </footer>
     </div>
