@@ -50,11 +50,11 @@ describe("POST /api/polish — 鍵が無いときの劣化", () => {
       request({
         ...valid,
         transcript: "えーと、のたいぷ の話です。",
-        dictionary: [{ from: ["のたいぷ"], to: "notype" }],
+        dictionary: [{ from: ["のたいぷ"], to: "NoType" }],
       }),
     );
     const text = await response.text();
-    expect(text).toContain("notype");
+    expect(text).toContain("NoType");
     expect(text).not.toContain("のたいぷ");
   });
 

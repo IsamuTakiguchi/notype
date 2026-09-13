@@ -79,7 +79,7 @@ const valid = {
   tone: "business",
   outputLang: "ja",
   transcript: "えーと、明日は晴れです。",
-  dictionary: [{ from: ["のたいぷ"], to: "notype" }],
+  dictionary: [{ from: ["のたいぷ"], to: "NoType" }],
 };
 
 describe("Claude へのリクエストの形", () => {

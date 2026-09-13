@@ -25,6 +25,9 @@ export default defineConfig({
     url: "http://127.0.0.1:3100",
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,
+    // E2E をレート制限に依存させない。制限そのものは
+    // lib/ratelimit.test.ts と app/api/polish/ratelimit-route.test.ts で検証する。
+    env: { ...process.env, RATE_LIMIT_MAX: "0" },
     stdout: "pipe",
     stderr: "pipe",
   },

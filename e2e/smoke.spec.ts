@@ -46,15 +46,15 @@ test("個人辞書が整形結果に反映される", async ({ page }) => {
 
   await page.getByRole("button", { name: /個人辞書/ }).click();
   await page.getByTestId("dict-from").fill("のたいぷ");
-  await page.getByTestId("dict-to").fill("notype");
+  await page.getByTestId("dict-to").fill("NoType");
   await page.getByTestId("dict-add").click();
-  await expect(page.getByTestId("dict-list")).toContainText("notype");
+  await expect(page.getByTestId("dict-list")).toContainText("NoType");
 
   await page.getByTestId("transcript-input").fill("えーと、のたいぷ の話なんですけど。");
   await page.getByTestId("polish-button").click();
 
   const output = page.getByTestId("polished-output");
-  await expect(output).toContainText("notype");
+  await expect(output).toContainText("NoType");
   await expect(output).not.toContainText("のたいぷ");
 
   await page.screenshot({ path: "e2e/__screenshots__/dictionary.png", fullPage: true });
@@ -100,4 +100,105 @@ test("空の入力では整形ボタンが押せない", async ({ page }) => {
   await expect(page.getByTestId("polish-button")).toBeDisabled();
   await page.getByTestId("transcript-input").fill("テストです。");
   await expect(page.getByTestId("polish-button")).toBeEnabled();
+});
+
+test("iPhone 向けのショートカット案内が使える形で出る", async ({ page, baseURL }) => {
+  await page.goto("/");
+  await page.getByTestId("shortcut-link").click();
+  await expect(page).toHaveURL(/\/shortcut$/);
+
+  // URL は表示中のオリジンから埋まる。手で打たせないことが要点。
+  await expect(page.getByTestId("shortcut-url")).toHaveText(`${baseURL}/api/polish`);
+
+  // API が要求する4キーが揃っていること。
+  const fields = page.getByTestId("shortcut-fields");
+  for (const key of ["mode", "tone", "outputLang", "transcript"]) {
+    await expect(fields).toContainText(key);
+  }
+
+  // 設定を変えたら案内の値も変わる。
+  await page.getByLabel("トーン").selectOption("minutes");
+  await expect(fields).toContainText("minutes");
+
+  await page.screenshot({ path: "e2e/__screenshots__/shortcut.png", fullPage: true });
+});
+
+test("ショートカット案内はスマホ幅でも横スクロールしない", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/shortcut");
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
+  expect(overflow).toBeLessThanOrEqual(0);
+});
+
+test.describe("iPhone 幅", () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  test("1ペインずつ表示し、整形するとタブが結果側へ移る", async ({ page }) => {
+    await page.goto("/");
+
+    // 並べる余地が無いので、初期は書き起こしだけ。
+    await expect(page.getByTestId("pane-tabs")).toBeVisible();
+    await expect(page.getByTestId("transcript-input")).toBeVisible();
+    await expect(page.getByTestId("polished-placeholder")).toBeHidden();
+    // 見た目の背景色はトランジション中に揺れるので、状態は aria-selected で確かめる。
+    await expect(page.getByTestId("pane-tab-raw")).toHaveAttribute("aria-selected", "true");
+
+    await page.getByTestId("transcript-input").fill("えーと、明日は晴れです。");
+    await page.getByTestId("polish-button").click();
+
+    // 押した瞬間に結果側へ移らないと「何も起きない」ように見える。
+    await expect(page.getByTestId("polished-output")).toBeVisible();
+    await expect(page.getByTestId("transcript-input")).toBeHidden();
+    await expect(page.getByTestId("pane-tab-polished")).toHaveAttribute("aria-selected", "true");
+
+    await page.getByTestId("pane-tab-raw").click();
+    await expect(page.getByTestId("transcript-input")).toBeVisible();
+    await expect(page.getByTestId("pane-tab-raw")).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByTestId("pane-tab-polished")).toHaveAttribute("aria-selected", "false");
+
+    // 遷移が落ち着いてから撮る。途中で撮ると選択タブが逆に見える。
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: "e2e/__screenshots__/iphone.png", fullPage: true });
+  });
+
+  test("マイクと整形ボタンが常に画面内に留まる", async ({ page }) => {
+    await page.goto("/");
+    await page.getByTestId("transcript-input").fill("長い書き起こし。\n".repeat(60));
+
+    // 下端固定なので、スクロールしてもビューポートの中に居ること。
+    await page.mouse.wheel(0, 4000);
+    const box = await page.getByTestId("polish-button").boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.y + box!.height).toBeLessThanOrEqual(844);
+    await expect(page.getByTestId("mic-button")).toBeInViewport();
+  });
+
+  test("入力欄が 16px 以上（iOS の自動ズームを避ける）", async ({ page }) => {
+    await page.goto("/");
+    const size = await page
+      .getByTestId("transcript-input")
+      .evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+    // 16px 未満だと iOS がフォーカス時にページ全体を勝手に拡大し、戻す手段が無い。
+    expect(size).toBeGreaterThanOrEqual(16);
+  });
+
+  test("横スクロールが出ない", async ({ page }) => {
+    await page.goto("/");
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    expect(overflow).toBeLessThanOrEqual(0);
+  });
+
+  test("スタンドアロン起動を宣言していない（宣言するとマイクが死ぬ）", async ({ page }) => {
+    await page.goto("/");
+    // この meta が無いことが要件そのもの。yes を出すと iOS がホーム画面から
+    // スタンドアロン起動し、その状態では webkitSpeechRecognition が動かない。
+    await expect(page.locator('meta[name="apple-mobile-web-app-capable"]')).toHaveCount(0);
+    // アイコンは配る。ホーム画面に置くこと自体を妨げたいわけではない。
+    await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveCount(1);
+    await expect(page.locator('meta[name="theme-color"]')).toHaveCount(2);
+  });
 });

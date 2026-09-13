@@ -28,6 +28,8 @@ export type UseDictationOptions = {
 export type UseDictation = {
   /** null は「まだ判定していない」。SSR と初回描画で false を出すと hydration mismatch になる。 */
   isSupported: boolean | null;
+  /** null は判定前。UI の文言をエンジンの挙動に合わせるために使う。 */
+  profile: SpeechProfile | null;
   status: DictationStatus;
   /** 未確定の認識結果。ライブ字幕として薄く表示する。 */
   interim: string;
@@ -69,36 +71,54 @@ function messageFor(code: string): string {
 }
 
 /**
- * サポート判定はサーバーでは決まらない値なので useSyncExternalStore で扱う。
+ * 認識エンジンの挙動の型。
+ *
+ * - continuous: Chrome / Edge。話し続けられる。勝手に終了するので自動で張り直す。
+ * - single-shot: WebKit（iOS の全ブラウザと macOS Safari）。continuous が信頼できず、
+ *   start() にユーザー操作を要求するため、1タップ＝1発話として扱う。
+ * - unsupported: API そのものが無い（Firefox など）。
+ *
+ * 注意: single-shot 経路は実機の iOS Safari で検証できていない。
+ * この環境には WebKit が無く、Playwright も chromium しか入っていない。
+ */
+export type SpeechProfile = "continuous" | "single-shot" | "unsupported";
+
+/**
+ * プロファイル判定はサーバーでは決まらない値なので useSyncExternalStore で扱う。
  * effect で setState して差し替える書き方より素直で、初回描画での
  * 「非対応です」のちらつき（= hydration mismatch）も構造的に起きない。
  */
 const subscribeToNothing = () => () => {};
-let supportCache: boolean | null = null;
+let profileCache: SpeechProfile | null = null;
 /** getSnapshot は毎レンダー呼ばれ Object.is で比較されるので、値を固定する。 */
-function getSupportSnapshot(): boolean {
-  supportCache ??= detectSupport();
-  return supportCache;
+function getProfileSnapshot(): SpeechProfile {
+  profileCache ??= detectProfile();
+  return profileCache;
 }
-const getServerSupportSnapshot = (): boolean | null => null;
+const getServerProfileSnapshot = (): SpeechProfile | null => null;
 
-function detectSupport(): boolean {
-  if (typeof window === "undefined") return false;
+function detectProfile(): SpeechProfile {
+  if (typeof window === "undefined") return "unsupported";
   const Ctor = window.SpeechRecognition ?? window.webkitSpeechRecognition;
-  if (!Ctor) return false;
-  // Safari はコンストラクタこそ持つが continuous が信頼できない。
-  // 半端に動くマイクを出すより、テキスト入力へ誘導したほうがよい。
+  if (!Ctor) return "unsupported";
+
   const ua = window.navigator.userAgent;
+  // iPhone / iPad は全ブラウザが WebKit。iPadOS は Macintosh を名乗るので touch 数も見る。
+  const isIOS =
+    /iphone|ipad|ipod/i.test(ua) || (/macintosh/i.test(ua) && window.navigator.maxTouchPoints > 1);
   const isSafari = /^((?!chrome|android|crios|fxios|edg).)*safari/i.test(ua);
-  return !isSafari;
+
+  return isIOS || isSafari ? "single-shot" : "continuous";
 }
 
 export function useDictation({ lang, onFinalSegment }: UseDictationOptions): UseDictation {
-  const isSupported = useSyncExternalStore<boolean | null>(
+  const profile = useSyncExternalStore<SpeechProfile | null>(
     subscribeToNothing,
-    getSupportSnapshot,
-    getServerSupportSnapshot,
+    getProfileSnapshot,
+    getServerProfileSnapshot,
   );
+  const isSupported = profile === null ? null : profile !== "unsupported";
+  const singleShot = profile === "single-shot";
   const [status, setStatus] = useState<DictationStatus>("idle");
   const [interim, setInterim] = useState("");
   const [error, setError] = useState<DictationError | null>(null);
@@ -112,10 +132,13 @@ export function useDictation({ lang, onFinalSegment }: UseDictationOptions): Use
   const restartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const langRef = useRef(lang);
   const onFinalRef = useRef(onFinalSegment);
+  /** onend ハンドラから読むので ref に持つ。state だと生成時の古い値を見る。 */
+  const singleShotRef = useRef(singleShot);
 
   useEffect(() => {
     onFinalRef.current = onFinalSegment;
-  }, [onFinalSegment]);
+    singleShotRef.current = singleShot;
+  }, [onFinalSegment, singleShot]);
 
   const clearRestartTimer = useCallback(() => {
     if (restartTimerRef.current !== null) {
@@ -160,7 +183,9 @@ export function useDictation({ lang, onFinalSegment }: UseDictationOptions): Use
     if (!Ctor) return null;
 
     const recognition = new Ctor();
-    recognition.continuous = true;
+    // WebKit は continuous を立てても素直に従わず、切れたまま戻らないことがある。
+    // 動いたり動かなかったりするより、1発話ずつ確実に取るほうがよい。
+    recognition.continuous = !singleShotRef.current;
     recognition.interimResults = true;
     recognition.maxAlternatives = 1;
     recognition.lang = langRef.current;
@@ -211,6 +236,14 @@ export function useDictation({ lang, onFinalSegment }: UseDictationOptions): Use
       startedRef.current = false;
       setInterim("");
       if (!wantListeningRef.current) {
+        setStatus("idle");
+        return;
+      }
+
+      // single-shot では1発話で終わるのが正常。ここで張り直すと、
+      // WebKit が start() にユーザー操作を要求するぶん失敗し、エラーだけが増える。
+      if (singleShotRef.current) {
+        wantListeningRef.current = false;
         setStatus("idle");
         return;
       }
@@ -308,5 +341,5 @@ export function useDictation({ lang, onFinalSegment }: UseDictationOptions): Use
 
   const clearError = useCallback(() => setError(null), []);
 
-  return { isSupported, status, interim, error, start, stop, toggle, clearError };
+  return { isSupported, profile, status, interim, error, start, stop, toggle, clearError };
 }
