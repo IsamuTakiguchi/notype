@@ -101,3 +101,33 @@ test("空の入力では整形ボタンが押せない", async ({ page }) => {
   await page.getByTestId("transcript-input").fill("テストです。");
   await expect(page.getByTestId("polish-button")).toBeEnabled();
 });
+
+test("iPhone 向けのショートカット案内が使える形で出る", async ({ page, baseURL }) => {
+  await page.goto("/");
+  await page.getByTestId("shortcut-link").click();
+  await expect(page).toHaveURL(/\/shortcut$/);
+
+  // URL は表示中のオリジンから埋まる。手で打たせないことが要点。
+  await expect(page.getByTestId("shortcut-url")).toHaveText(`${baseURL}/api/polish`);
+
+  // API が要求する4キーが揃っていること。
+  const fields = page.getByTestId("shortcut-fields");
+  for (const key of ["mode", "tone", "outputLang", "transcript"]) {
+    await expect(fields).toContainText(key);
+  }
+
+  // 設定を変えたら案内の値も変わる。
+  await page.getByLabel("トーン").selectOption("minutes");
+  await expect(fields).toContainText("minutes");
+
+  await page.screenshot({ path: "e2e/__screenshots__/shortcut.png", fullPage: true });
+});
+
+test("ショートカット案内はスマホ幅でも横スクロールしない", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/shortcut");
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
+  expect(overflow).toBeLessThanOrEqual(0);
+});

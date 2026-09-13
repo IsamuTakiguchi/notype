@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { DictionaryPanel } from "@/components/DictionaryPanel";
@@ -352,9 +353,16 @@ function Header() {
         <h1 className="text-xl font-semibold tracking-tight text-ink">notype</h1>
         <p className="text-sm text-ink-soft">話すだけで、整った文章に。</p>
       </div>
-      <p className="text-xs text-ink-faint">
-        音声入力は Chrome / Edge のみ。音声は認識のため Google の音声サービスに送信されます。
-      </p>
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs text-ink-faint">
+        <span>音声入力は Chrome / Edge のみ。音声は認識のため Google の音声サービスに送信されます。</span>
+        <Link
+          href="/shortcut"
+          data-testid="shortcut-link"
+          className="underline underline-offset-2 transition hover:text-ink"
+        >
+          iPhone から使う
+        </Link>
+      </div>
     </header>
   );
 }
