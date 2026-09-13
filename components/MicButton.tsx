@@ -1,10 +1,12 @@
 "use client";
 
-import type { DictationStatus } from "@/hooks/useDictation";
+import type { DictationStatus, SpeechProfile } from "@/hooks/useDictation";
 
 type Props = {
   status: DictationStatus;
   isSupported: boolean | null;
+  /** WebKit は1タップ1発話。押しっぱなしでは無いことを文言で伝える。 */
+  profile: SpeechProfile | null;
   /** true のとき押している間だけ録音する（「話して編集」で一言指示を出す用）。 */
   holdToTalk: boolean;
   onToggle: () => void;
@@ -12,7 +14,15 @@ type Props = {
   onHoldEnd: () => void;
 };
 
-export function MicButton({ status, isSupported, holdToTalk, onToggle, onHoldStart, onHoldEnd }: Props) {
+export function MicButton({
+  status,
+  isSupported,
+  profile,
+  holdToTalk,
+  onToggle,
+  onHoldStart,
+  onHoldEnd,
+}: Props) {
   const listening = status === "listening" || status === "starting";
   // isSupported が null の間（判定前）は中立の見た目にする。
   // ここで「非対応」を描くと SSR 出力と食い違って hydration mismatch になる。
@@ -61,7 +71,11 @@ export function MicButton({ status, isSupported, holdToTalk, onToggle, onHoldSta
           {pending ? "　" : listening ? "聞いています…" : holdToTalk ? "押しながら話す" : "話す"}
         </p>
         <p className="truncate text-xs text-ink-faint">
-          {holdToTalk ? "ボタンを押している間だけ録音します" : "もう一度押すと停止します"}
+          {holdToTalk
+            ? "ボタンを押している間だけ録音します"
+            : profile === "single-shot"
+              ? "一文ずつ、話し終えると自動で止まります"
+              : "もう一度押すと停止します"}
         </p>
       </div>
     </div>

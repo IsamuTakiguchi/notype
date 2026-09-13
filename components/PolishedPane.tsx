@@ -17,6 +17,8 @@ type Props = {
   onCopy: () => void;
   onRetry: () => void;
   canRetry: boolean;
+  /** スマホ幅ではタブで1枚ずつ出すため、非アクティブ側を畳む。md 以上では常に表示。 */
+  hiddenOnMobile?: boolean;
 };
 
 const FALLBACK_NOTE: Record<FallbackReason, string> = {
@@ -39,6 +41,7 @@ export function PolishedPane({
   onCopy,
   onRetry,
   canRetry,
+  hiddenOnMobile = false,
 }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -51,7 +54,12 @@ export function PolishedPane({
   }, [text, isStreaming]);
 
   return (
-    <section className="flex min-h-0 flex-col rounded-xl border border-line bg-panel">
+    <section
+      className={[
+        "min-h-0 flex-col rounded-xl border border-line bg-panel",
+        hiddenOnMobile ? "hidden md:flex" : "flex",
+      ].join(" ")}
+    >
       <header className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-line px-4 py-2.5">
         <div className="flex items-center gap-2">
           <h2 className="text-sm font-medium text-ink">整形後</h2>
@@ -109,7 +117,7 @@ export function PolishedPane({
           <p
             data-testid="polished-output"
             className={[
-              "whitespace-pre-wrap text-[15px] leading-[1.9] text-ink",
+              "whitespace-pre-wrap text-base leading-[1.9] text-ink md:text-[15px]",
               isStreaming ? "notype-caret" : "",
             ].join(" ")}
           >
@@ -118,7 +126,7 @@ export function PolishedPane({
         ) : isStreaming ? (
           <Shimmer />
         ) : (
-          <p data-testid="polished-placeholder" className="text-[15px] leading-[1.9] text-ink-faint/70">
+          <p data-testid="polished-placeholder" className="text-base leading-[1.9] text-ink-faint/70 md:text-[15px]">
             ここに整形結果が表示されます。
           </p>
         )}

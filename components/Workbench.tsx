@@ -69,6 +69,8 @@ export function Workbench() {
   const [raw, setRaw] = useState("");
   const [panel, setPanel] = useState<Panel>(null);
   const [copied, setCopied] = useState(false);
+  // スマホ幅では2ペインを並べる余地が無いので1枚ずつ出す。md 以上では両方見せる。
+  const [mobilePane, setMobilePane] = useState<"raw" | "polished">("raw");
 
   const [settings, setSettings] = useLocalStorage(KEYS.settings, DEFAULT_SETTINGS, parseSettings);
   const [dictionary, setDictionary, dictHydrated] = useLocalStorage<DictEntry[]>(
@@ -110,6 +112,10 @@ export function Workbench() {
     if (!raw.trim()) return;
     if (settings.mode === "edit" && !editTarget.trim()) return;
 
+    // スマホでは結果ペインがタブの裏に隠れている。押した瞬間に表へ出さないと
+    // 「押したのに何も起きない」に見える。
+    setMobilePane("polished");
+
     const { mode, tone, outputLang } = settings;
     const source = raw;
     const result = await runPolish({
@@ -133,6 +139,7 @@ export function Workbench() {
     };
     setHistory((prev) => [item, ...prev].slice(0, MAX_HISTORY));
   }, [dictionary, editTarget, raw, runPolish, setHistory, settings]);
+
 
   // トーンや翻訳先を変えたら、録り直さずにその場で整形し直す。
   // 「話して編集」は対象が入れ替わってしまうので自動実行の対象から外す。
@@ -208,10 +215,10 @@ export function Workbench() {
   }, [editTarget, settings.mode]);
 
   return (
-    <div className="mx-auto flex min-h-dvh max-w-6xl flex-col gap-5 px-4 py-6 sm:px-6 lg:px-8">
+    <div className="mx-auto flex min-h-dvh max-w-6xl flex-col gap-4 px-4 pt-[max(1rem,env(safe-area-inset-top))] sm:gap-5 sm:px-6 sm:pt-6 lg:px-8">
       <Header />
 
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className="flex flex-wrap items-end justify-between gap-3 sm:gap-4">
         <ModeBar settings={settings} onChange={(next) => setSettings((p) => ({ ...p, ...next }))} />
         <div className="flex items-center gap-2">
           <PanelToggle active={panel === "dictionary"} onClick={() => togglePanel(setPanel, "dictionary")}>
@@ -243,10 +250,15 @@ export function Workbench() {
         </div>
       ) : null}
 
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-line bg-panel px-4 py-3">
+      {/*
+        スマホでは親指の届く下端に固定する。ページ末尾に置くと、
+        書き起こしをスクロールしている最中にマイクが画面外へ消えてしまう。
+      */}
+      <div className="sticky bottom-0 z-10 -mx-4 order-last flex flex-wrap items-center justify-between gap-3 border-t border-line bg-panel/95 px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur sm:static sm:order-none sm:mx-0 sm:rounded-xl sm:border sm:pb-3 sm:backdrop-blur-none">
         <MicButton
           status={dictation.status}
           isSupported={dictation.isSupported}
+          profile={dictation.profile}
           holdToTalk={holdToTalk}
           onToggle={dictation.toggle}
           onHoldStart={dictation.start}
@@ -280,8 +292,16 @@ export function Workbench() {
         </p>
       ) : null}
 
-      <div className="grid min-h-[26rem] flex-1 grid-cols-1 gap-4 md:grid-cols-2">
+      <PaneTabs
+        active={mobilePane}
+        onChange={setMobilePane}
+        rawLength={raw.length}
+        polishedLength={polish.text.length}
+      />
+
+      <div className="grid min-h-[18rem] flex-1 grid-cols-1 gap-4 sm:min-h-[26rem] md:grid-cols-2">
         <TranscriptPane
+          hiddenOnMobile={mobilePane !== "raw"}
           value={raw}
           interim={dictation.interim}
           mode={settings.mode}
@@ -292,6 +312,7 @@ export function Workbench() {
           onDismissError={dictation.clearError}
         />
         <PolishedPane
+          hiddenOnMobile={mobilePane !== "polished"}
           text={polish.text}
           sourceLength={raw.length}
           isStreaming={polish.isStreaming}
@@ -307,6 +328,53 @@ export function Workbench() {
       </div>
 
       <Footer />
+    </div>
+  );
+}
+
+/** スマホ幅でだけ出るペイン切替。md 以上では両方並ぶので不要。 */
+function PaneTabs({
+  active,
+  onChange,
+  rawLength,
+  polishedLength,
+}: {
+  active: "raw" | "polished";
+  onChange: (pane: "raw" | "polished") => void;
+  rawLength: number;
+  polishedLength: number;
+}) {
+  const tabs = [
+    { id: "raw" as const, label: "生の書き起こし", count: rawLength },
+    { id: "polished" as const, label: "整形後", count: polishedLength },
+  ];
+  return (
+    <div
+      role="tablist"
+      aria-label="表示するペイン"
+      data-testid="pane-tabs"
+      className="flex rounded-lg border border-line bg-panel p-0.5 md:hidden"
+    >
+      {tabs.map((tab) => (
+        <button
+          key={tab.id}
+          type="button"
+          role="tab"
+          aria-selected={active === tab.id}
+          data-testid={`pane-tab-${tab.id}`}
+          onClick={() => onChange(tab.id)}
+          className={[
+            "flex-1 rounded-md px-3 py-2 text-sm transition",
+            "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent",
+            active === tab.id ? "bg-accent-soft font-medium text-accent" : "text-ink-soft",
+          ].join(" ")}
+        >
+          {tab.label}
+          {tab.count ? (
+            <span className="ml-1.5 text-xs tabular-nums opacity-70">{tab.count}</span>
+          ) : null}
+        </button>
+      ))}
     </div>
   );
 }
@@ -354,7 +422,10 @@ function Header() {
         <p className="text-sm text-ink-soft">話すだけで、整った文章に。</p>
       </div>
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs text-ink-faint">
-        <span>音声入力は Chrome / Edge のみ。音声は認識のため Google の音声サービスに送信されます。</span>
+        <span className="hidden sm:inline">
+          音声入力は Chrome / Edge のみ。音声は認識のため Google の音声サービスに送信されます。
+        </span>
+        <span className="sm:hidden">音声は Google の音声サービスに送信されます。</span>
         <Link
           href="/shortcut"
           data-testid="shortcut-link"
@@ -369,7 +440,8 @@ function Header() {
 
 function Footer() {
   return (
-    <footer className="text-xs leading-relaxed text-ink-faint">
+    // スマホでは下部固定バーに隠れるうえ、本文までの距離を伸ばすだけなので出さない。
+    <footer className="hidden text-xs leading-relaxed text-ink-faint sm:block">
       フィラー・言い直し・繰り返しを取り除き、指定したトーンに整えます。
       内容の要約や創作はしません（議事録トーンを除く）。
     </footer>

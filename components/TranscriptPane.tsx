@@ -14,6 +14,8 @@ type Props = {
   onChange: (value: string) => void;
   onClear: () => void;
   onDismissError: () => void;
+  /** スマホ幅ではタブで1枚ずつ出すため、非アクティブ側を畳む。md 以上では常に表示。 */
+  hiddenOnMobile?: boolean;
 };
 
 const PLACEHOLDER: Record<Mode, string> = {
@@ -31,6 +33,7 @@ export function TranscriptPane({
   onChange,
   onClear,
   onDismissError,
+  hiddenOnMobile = false,
 }: Props) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -42,7 +45,12 @@ export function TranscriptPane({
   }, [value, listening]);
 
   return (
-    <section className="flex min-h-0 flex-col rounded-xl border border-line bg-panel">
+    <section
+      className={[
+        "min-h-0 flex-col rounded-xl border border-line bg-panel",
+        hiddenOnMobile ? "hidden md:flex" : "flex",
+      ].join(" ")}
+    >
       <header className="flex items-center justify-between gap-2 border-b border-line px-4 py-2.5">
         <h2 className="text-sm font-medium text-ink">
           {mode === "edit" ? "音声の指示" : "生の書き起こし"}
@@ -89,14 +97,16 @@ export function TranscriptPane({
           onChange={(event) => onChange(event.target.value)}
           placeholder={PLACEHOLDER[mode]}
           spellCheck={false}
-          className="size-full resize-none bg-transparent px-4 py-3 text-[15px] leading-[1.9] text-ink placeholder:text-ink-faint/70 focus:outline-none"
+          // text-base (16px) は必須。iOS は 16px 未満の入力欄にフォーカスすると
+          // ページ全体を勝手にズームし、戻す手段がユーザーに無い。
+          className="size-full resize-none bg-transparent px-4 py-3 text-base leading-[1.9] text-ink placeholder:text-ink-faint/70 focus:outline-none md:text-[15px]"
         />
         {interim ? (
           // 未確定の認識結果。これが出ていることが「聞こえている」という一番強い合図になる。
           <p
             data-testid="interim"
             aria-live="polite"
-            className="pointer-events-none absolute inset-x-4 bottom-3 rounded-md bg-panel/90 px-2 py-1 text-[15px] italic leading-[1.9] text-ink-faint"
+            className="pointer-events-none absolute inset-x-4 bottom-3 rounded-md bg-panel/90 px-2 py-1 text-base italic leading-[1.9] text-ink-faint md:text-[15px]"
           >
             {interim}
           </p>
